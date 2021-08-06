@@ -9,25 +9,10 @@ pub enum SequenceGame {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all="kebab-case")]
 pub struct TextSequence {
-    clue1: String,
-    clue2: String,
-    clue3: String,
-    clue4: String,
-    clue5: String,
-    answer: String,
-}
-
-#[derive(Debug, Clone)]
-pub enum SequenceState {
-    Text(TextSequenceState)
-}
-
-#[derive(Debug, Clone)]
-pub enum TextSequenceState {
-    Clue1,
-    Clue2,
-    Clue3,
-    Clue4,
-    Clue5,
-    Answered,
+    pub clue1: String,
+    pub clue2: String,
+    pub clue3: String,
+    pub clue4: String,
+    pub clue5: String,
+    pub answer: String,
 }

@@ -87,6 +87,11 @@ async fn add_game(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 #[command]
 #[aliases("play")]
 async fn play(ctx: &Context, msg: &Message) -> CommandResult {
+    Executor::new(ctx, msg)
+        .try_write_and_get(|s| s.queue_game())
+        .await
+        .send()
+        .await?;
     Ok(())
 }
 

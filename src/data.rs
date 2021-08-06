@@ -13,8 +13,11 @@ use serenity::{
 };
 use async_trait::async_trait;
 use crate::{
-    games::game::{
-        Game,
+    games::{
+        game::{
+            Game,
+            PlayingGame,
+        },
     },
     error::Error,
 };
@@ -23,12 +26,12 @@ impl TypeMapKey for State {
     type Value = State;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct State {
     pub host: Option<User>,
     pub main_channel: Option<GuildChannel>,
     pub games: Vec<Game>,
-//    pub playing: Option<PlayingGame>
+    pub playing: Option<PlayingGame>
 }
 
 impl State {
@@ -37,7 +40,7 @@ impl State {
             host: None,
             main_channel: None,
             games: vec![],
-//            playing: None,
+            playing: None,
         }
     }
     
@@ -55,20 +58,26 @@ impl State {
     pub fn add_game(&mut self, game: Game) {
         self.games.push(game);
     }
+
+    pub fn queue_game(&mut self) -> Result<(), Error> {
+        let game = self.games.pop()
+            .ok_or(Error::NoGamesLeft)?;
+        self.playing = Some(PlayingGame::new(game));
+        Ok(())
+    }
+
+    pub fn next_clue(&mut self) -> Result<String, Error> {
+        let (clue, playing) = self.playing
+            .as_ref()
+            .ok_or(Error::NoGamePlaying)
+            .and_then(|p| {
+                let (clue, state) = p.clone().next_clue();
+                Ok((clue, p.clone().with_state(state)))
+            })?;
+        self.playing = Some(playing);
+        Ok(clue.unwrap_or("".to_string()))
+    }
 }
-
-#[derive(Debug, Clone)]
-pub struct PlayingGame {
-    pub game: Game,
-    pub state: PlayState,
-}
-
-impl PlayingGame {
-
-}
-
-#[derive(Debug, Clone)]
-pub enum PlayState {}
 
 pub type RespondableResult<'a> = Result<ResponseOk<'a>, ResponseErr<'a>>;
 pub type DynRespondable = Box<dyn Respondable>;

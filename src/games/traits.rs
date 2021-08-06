@@ -1,4 +1,14 @@
+pub trait Playable: std::fmt::Debug + Send + Sync {
+    type State;
+    type ClueType;
+    type AnswerType;
 
+    fn next(&self, state: Self::State) -> (Option<Self::ClueType>, Self::State);
+
+    fn reveal(&self) -> (Option<Self::AnswerType>, Self::State);
+}
+
+pub trait PlayState: std::fmt::Debug + Send + Sync {}
 
 pub trait NextClue {
     type State;

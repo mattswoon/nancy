@@ -9,24 +9,9 @@ pub enum LinkGame {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all="kebab-case")]
 pub struct TextLink {
-    clue1: String,
-    clue2: String,
-    clue3: String,
-    clue4: String,
-    answer: String,
-}
-
-#[derive(Debug, Clone)]
-pub enum LinkState {
-    Text(TextLinkState)
-}
-
-#[derive(Debug, Clone)]
-pub enum TextLinkState {
-    Clue1,
-    Clue2,
-    Clue3,
-    Clue4,
-    NoCluesLeft,
-    Answered,
+    pub clue1: String,
+    pub clue2: String,
+    pub clue3: String,
+    pub clue4: String,
+    pub answer: String,
 }

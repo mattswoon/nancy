@@ -5,6 +5,8 @@ use crate::data::ResponseErr;
 pub enum Error {
     NoState,
     NoMainChannel,
+    NoGamesLeft,
+    NoGamePlaying,
     Serde(String),
 }
 
@@ -17,6 +19,10 @@ impl Display for Error {
                 write!(f, "No main channel set"),
             Error::Serde(e) =>
                 write!(f, "{}", e),
+            Error::NoGamePlaying =>
+                write!(f, "A game hasn't been queued"),
+            Error::NoGamesLeft => 
+                write!(f, "There are no games left, try adding some more"),
         }
     }
 }
