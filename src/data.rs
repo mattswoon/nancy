@@ -3,7 +3,6 @@ use serenity::{
     client::Context,
     framework::standard::CommandResult,
     model::{
-        user::User,
         channel::{
             GuildChannel,
             Message,
@@ -28,7 +27,6 @@ impl TypeMapKey for State {
 
 #[derive(Debug)]
 pub struct State {
-    pub host: Option<User>,
     pub main_channel: Option<GuildChannel>,
     pub games: Vec<Game>,
     pub playing: Option<PlayingGame>
@@ -37,7 +35,6 @@ pub struct State {
 impl State {
     pub fn new() -> State {
         State {
-            host: None,
             main_channel: None,
             games: vec![],
             playing: None,
@@ -49,10 +46,6 @@ impl State {
             games,
             ..self
         }
-    }
-
-    pub fn set_host(&mut self, user: &User) {
-        self.host = Some(user.clone());
     }
 
     pub fn add_game(&mut self, game: Game) {
@@ -76,6 +69,18 @@ impl State {
             })?;
         self.playing = Some(playing);
         Ok(clue.unwrap_or("".to_string()))
+    }
+
+    pub fn reveal(&mut self) -> Result<String, Error> {
+        let (answer, playing) = self.playing
+            .as_ref()
+            .ok_or(Error::NoGamePlaying)
+            .and_then(|p| {
+                let (answer, state) = p.clone().reveal();
+                Ok((answer, p.clone().with_state(state)))
+            })?;
+        self.playing = Some(playing);
+        Ok(answer)
     }
 }
 
@@ -279,14 +284,26 @@ impl<'a> Respondable for ResponseOk<'a> {
             self.message.react(self.context, r).await?;
         }
         if let Some(text) = self.content {
-            if let Some(chan) = self.channel {
-                chan.send_message(self.context, |m| m.content(&text))
-                    .await?;
-            }
-            if let Some(dm_chan) = self.dm_channel {
-                dm_chan.send_message(self.context, |m| m.content(&text))
-                    .await?;
-            }
+            match (self.channel, self.dm_channel) {
+                (Some(chan), None) => {
+                    chan.send_message(self.context, |m| m.content(&text))
+                        .await
+                },
+                (None, Some(dm_chan)) => {
+                    dm_chan.send_message(self.context, |m| m.content(&text))
+                        .await
+                },
+                (Some(chan), Some(dm_chan)) => {
+                    chan.send_message(self.context, |m| m.content(&text))
+                        .await?;
+                    dm_chan.send_message(self.context, |m| m.content(&text))
+                        .await
+                },
+                (None, None) => {
+                    self.message.reply(self.context, text)
+                        .await
+                }
+            }?;
         }
         Ok(())
     }

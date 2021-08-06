@@ -23,11 +23,15 @@ use nancy::{
         State,
         Executor,
         ResponseOk,
-        ResponseErr,
         Respondable,
-        OrSend,
     },
-    games::game::Game,
+    games::{
+        game::Game,
+        link::{
+            LinkGame,
+            TextLink,
+        },
+    },
     error::Error,
 };
 
@@ -35,28 +39,9 @@ use nancy::{
 async fn status(ctx: &Context, msg: &Message) -> CommandResult {
     Executor::new(ctx, msg)
         .read(|s| {
-            let host_name = s.host
-                .as_ref()
-                .map(|u| u.name.clone())
-                .unwrap_or("NOTSET".to_string());
+            log::info!("Number of games: {}", s.games.len());
             ResponseOk::new(ctx, msg)
-                .with_content(format!("```\nHost: {}\n```", host_name))
-        })
-        .await
-        .send()
-        .await
-}
-
-#[command]
-#[aliases("become-host")]
-async fn become_host(ctx: &Context, msg: &Message) -> CommandResult {
-    Executor::new(ctx, msg)
-        .write(|s| {
-            let host = &msg.author;
-            s.set_host(&host);
-            log::info!("{} has become the host", &host);
-            ResponseOk::new(ctx, msg)
-                .with_content(format!("I made {} the host", host.name))
+                .with_content(format!("Number of games: {}", s.games.len()))
         })
         .await
         .send()
@@ -85,19 +70,75 @@ async fn add_game(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 }
 
 #[command]
+#[only_in("dm")]
+#[aliases("parse-text-link")]
+async fn parse_text_link(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
+    let mut args = args;
+    let clue1: String = args.single()?;
+    let clue2: String = args.single()?;
+    let clue3: String = args.single()?;
+    let clue4: String = args.single()?;
+    let answer: String = args.single()?;
+    let text_link_game = TextLink { clue1, clue2, clue3, clue4, answer };
+    let game = Game::Link(LinkGame::Text(text_link_game));
+    let as_string = serde_json::to_string_pretty(&game)
+        .map_err(|e| Error::Serde(e.to_string()))?;
+
+    msg.reply(
+        ctx,
+        format!("```\n{}\n```", as_string)
+    ).await?;
+    Ok(())
+}
+
+#[command]
 #[aliases("play")]
+#[only_in("guild")]
 async fn play(ctx: &Context, msg: &Message) -> CommandResult {
     Executor::new(ctx, msg)
-        .try_write_and_get(|s| s.queue_game())
+        .try_write(|s| {
+            let clue = s.queue_game()
+                .and_then(|()| s.next_clue())?;
+            Ok(ResponseOk::new(ctx, msg)
+               .with_content(format!("```\n{}\n```", clue)))
+        })
         .await
         .send()
-        .await?;
-    Ok(())
+        .await
+}
+
+#[command]
+#[aliases("next-clue")]
+#[only_in("guild")]
+async fn next_clue(ctx: &Context, msg: &Message) -> CommandResult {
+    Executor::new(ctx, msg)
+        .try_write(|s| {
+            let clue = s.next_clue()?;
+            Ok(ResponseOk::new(ctx, msg)
+                .with_content(format!("```\n{}\n```", clue)))
+        })
+        .await
+        .send()
+        .await
+}
+
+#[command]
+#[only_in("guild")]
+async fn reveal(ctx: &Context, msg: &Message) -> CommandResult {
+    Executor::new(ctx, msg)
+        .try_write(|s| {
+            let answer = s.reveal()?;
+            Ok(ResponseOk::new(ctx, msg)
+               .with_content(format!("```\n{}\n```", answer)))
+        })
+        .await
+        .send()
+        .await
 }
 
 
 #[group]
-#[commands(status, become_host, add_game, play)]
+#[commands(status, add_game, play, parse_text_link, next_clue, reveal)]
 struct General;
 
 struct Handler;
@@ -136,7 +177,8 @@ async fn main() {
         });
 
     let framework = StandardFramework::new()
-        .configure(|c| c.prefix("!"))
+        .configure(|c| c.prefix("!")
+                   .delimiter("\n"))
         .group(&GENERAL_GROUP);
 
     Client::builder(&token)

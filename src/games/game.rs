@@ -80,8 +80,8 @@ impl PlayingGame {
 
     pub fn reveal(self) -> (String, GameState) {
         match self.game {
-            Game::Link(LinkGame::Text(g)) => (g.answer, GameState::Answered),
-            Game::Sequence(SequenceGame::Text(g)) => (g.answer, GameState::Answered),
+            Game::Link(LinkGame::Text(g)) => (g.to_string(), GameState::Answered),
+            Game::Sequence(SequenceGame::Text(g)) => (g.to_string(), GameState::Answered),
         }
     }
 }
