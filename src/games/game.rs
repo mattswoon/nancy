@@ -10,8 +10,16 @@ use crate::games::{
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+pub struct Game {
+    pub submitted_by: String,
+    #[serde(flatten)]
+    pub game: GameType,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag="game-type", rename_all="kebab-case")]
-pub enum Game {
+pub enum GameType {
     Sequence(SequenceGame),
     Link(LinkGame),
 }
@@ -49,27 +57,27 @@ impl PlayingGame {
     pub fn next_clue(self) -> (Option<String>, GameState) {
         match &self.state {
             GameState::Ready => {
-                match self.game {
-                    Game::Link(LinkGame::Text(g)) => (Some(format!("1. {}\n", g.clue1)), GameState::Clue(1)),
-                    Game::Sequence(SequenceGame::Text(g)) => (Some(format!("1. {}\n", g.clue1)), GameState::Clue(1)),
+                match self.game.game {
+                    GameType::Link(LinkGame::Text(g)) => (Some(format!("1.\t{}\n", g.clue1.replace("\n", "\n\t\t"))), GameState::Clue(1)),
+                    GameType::Sequence(SequenceGame::Text(g)) => (Some(format!("1.\t{}\n", g.clue1.replace("\n", "\n\t\t"))), GameState::Clue(1)),
                 }
             },
             GameState::Clue(i) => {
-                match self.game {
-                    Game::Link(LinkGame::Text(g)) => {
+                match self.game.game {
+                    GameType::Link(LinkGame::Text(g)) => {
                         match &i {
-                            1 => (Some(format!("1. {}\n2. {}\n", g.clue1, g.clue2)), GameState::Clue(2)),
-                            2 => (Some(format!("1. {}\n2. {}\n3. {}\n", g.clue1, g.clue2, g.clue3)), GameState::Clue(3)),
-                            3 => (Some(format!("1. {}\n2. {}\n3. {}\n4. {}\n", g.clue1, g.clue2, g.clue3, g.clue4)), GameState::NoCluesLeft),
+                            1 => (Some(format!("1.\t{}\n2.\t{}\n", g.clue1.replace("\n", "\n\t\t"), g.clue2.replace("\n", "\n\t\t"))), GameState::Clue(2)),
+                            2 => (Some(format!("1.\t{}\n2.\t{}\n3.\t{}\n", g.clue1.replace("\n", "\n\t\t"), g.clue2.replace("\n", "\n\t\t"), g.clue3.replace("\n", "\n\t\t"))), GameState::Clue(3)),
+                            3 => (Some(format!("1.\t{}\n2.\t{}\n3.\t{}\n4.\t{}\n", g.clue1.replace("\n", "\n\t\t"), g.clue2.replace("\n", "\n\t\t"), g.clue3.replace("\n", "\n\t\t"), g.clue4.replace("\n", "\n\t\t"))), GameState::NoCluesLeft),
                             _ => (None, GameState::NoCluesLeft),
                         }
                     },
-                    Game::Sequence(SequenceGame::Text(g)) => {
+                    GameType::Sequence(SequenceGame::Text(g)) => {
                         match &i {
-                            1 => (Some(format!("1. {}\n2. {}\n", g.clue1, g.clue2)), GameState::Clue(2)),
-                            2 => (Some(format!("1. {}\n2. {}\n3. {}\n", g.clue1, g.clue2, g.clue3)), GameState::Clue(3)),
-                            3 => (Some(format!("1. {}\n2. {}\n3. {}\n4. {}\n", g.clue1, g.clue2, g.clue3, g.clue4)), GameState::NoCluesLeft),
-                            4 => (Some(format!("1. {}\n2. {}\n3. {}\n4. {}\n5. {}\n", g.clue1, g.clue2, g.clue3, g.clue4, g.clue5)), GameState::NoCluesLeft),
+                            1 => (Some(format!("1.\t{}\n2.\t{}\n", g.clue1.replace("\n", "\n\t\t"), g.clue2.replace("\n", "\n\t\t"))), GameState::Clue(2)),
+                            2 => (Some(format!("1.\t{}\n2.\t{}\n3.\t{}\n", g.clue1.replace("\n", "\n\t\t"), g.clue2.replace("\n", "\n\t\t"), g.clue3.replace("\n", "\n\t\t"))), GameState::Clue(3)),
+                            3 => (Some(format!("1.\t{}\n2.\t{}\n3.\t{}\n4.\t{}\n", g.clue1.replace("\n", "\n\t\t"), g.clue2.replace("\n", "\n\t\t"), g.clue3.replace("\n", "\n\t\t"), g.clue4.replace("\n", "\n\t\t"))), GameState::NoCluesLeft),
+                            4 => (Some(format!("1.\t{}\n2.\t{}\n3.\t{}\n4.\t{}\n5.\t{}\n", g.clue1.replace("\n", "\n\t\t"), g.clue2.replace("\n", "\n\t\t"), g.clue3.replace("\n", "\n\t\t"), g.clue4.replace("\n", "\n\t\t"), g.clue5.replace("\n", "\n\t\t"))), GameState::NoCluesLeft),
                             _ => (None, GameState::NoCluesLeft),
                         }
                     },
@@ -80,20 +88,27 @@ impl PlayingGame {
     }
 
     pub fn reveal(self) -> (String, GameState) {
-        match self.game {
-            Game::Link(LinkGame::Text(g)) => (g.to_string(), GameState::Answered),
-            Game::Sequence(SequenceGame::Text(g)) => (g.to_string(), GameState::Answered),
+        let submitted_by = self.game.submitted_by.clone();
+        match self.game.game {
+            GameType::Link(LinkGame::Text(g)) => (format!("Submitted by: {}\n\n{}", submitted_by, g), GameState::Answered),
+            GameType::Sequence(SequenceGame::Text(g)) => (format!("Submitted by: {}\n\n{}", submitted_by, g), GameState::Answered),
+        }
+    }
+}
+
+impl Display for GameType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            GameType::Link(LinkGame::Text(g)) => 
+                write!(f, "{}", g),
+            GameType::Sequence(SequenceGame::Text(g)) =>
+                write!(f, "{}", g),
         }
     }
 }
 
 impl Display for Game {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Game::Link(LinkGame::Text(g)) => 
-                write!(f, "{}", g),
-            Game::Sequence(SequenceGame::Text(g)) =>
-                write!(f, "{}", g),
-        }
+        write!(f, "Submitted by: {}\n\n{}", self.submitted_by, self.game)
     }
 }

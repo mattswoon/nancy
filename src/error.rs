@@ -7,6 +7,9 @@ pub enum Error {
     NoMainChannel,
     NoGamesLeft,
     NoGamePlaying,
+    NotFinishedPlayingYet,
+    NoCluesToShow,
+    NothingToReveal,
     ArgError(String),
     Serde(String),
 }
@@ -26,6 +29,12 @@ impl Display for Error {
                 write!(f, "There are no games left, try adding some more"),
             Error::ArgError(s) =>
                 write!(f, "Couldn't parse an argument: {}", s),
+            Error::NotFinishedPlayingYet =>
+                write!(f, "Haven't finished the current game yet"),
+            Error::NoCluesToShow  =>
+                write!(f, "No clues to show"),
+            Error::NothingToReveal => 
+                write!(f, "Nothing to reveal"),
         }
     }
 }

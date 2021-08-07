@@ -36,7 +36,10 @@ use nancy::{
         OrSend,
     },
     games::{
-        game::Game,
+        game::{
+            Game,
+            GameType,
+        },
         link::{
             LinkGame,
             TextLink,
@@ -72,9 +75,11 @@ async fn add_game(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let dm_chan = msg.author.create_dm_channel(ctx).await?;
     Executor::new(ctx, msg)
         .try_write(|s| {
-            let game: Game = serde_json::from_str(&data)
+            let game: GameType = serde_json::from_str(&data)
                 .map_err(|e| Error::Serde(format!("{}", e)))?;
             let reply_msg = format!("```\n{:?}\n```", &game);
+            let submitted_by = msg.author.name.clone();
+            let game = Game { submitted_by, game };
             s.add_game(game);
             Ok(ResponseOk::new(ctx, msg)
                 .with_dm_channel(&dm_chan)
@@ -100,7 +105,7 @@ async fn add_game(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 ///
 #[command]
 #[only_in("dm")]
-#[aliases("add-text-link-game")]
+#[aliases("add-text-link-game", "add-link", "addlink", "add_link", "link")]
 async fn add_text_link_game(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let mut args = args;
     let clue1: String = args.single()
@@ -139,7 +144,8 @@ async fn add_text_link_game(ctx: &Context, msg: &Message, args: Args) -> Command
         .or_send()
         .await?;
     let text_link_game = TextLink { clue1, clue2, clue3, clue4, answer };
-    let game = Game::Link(LinkGame::Text(text_link_game));
+    let submitted_by = msg.author.name.clone();
+    let game = Game { submitted_by, game: GameType::Link(LinkGame::Text(text_link_game)) };
     Executor::new(ctx, msg)
         .write(|s| {
             let game_str = format!("```\n{}\n```", &game);
@@ -157,7 +163,7 @@ async fn add_text_link_game(ctx: &Context, msg: &Message, args: Args) -> Command
 ///
 /// Eg.
 ///
-///     !add-text-link-game
+///     !add-text-sequence-game
 ///     a
 ///     e
 ///     i
@@ -167,7 +173,7 @@ async fn add_text_link_game(ctx: &Context, msg: &Message, args: Args) -> Command
 ///
 #[command]
 #[only_in("dm")]
-#[aliases("add-text-sequence-game")]
+#[aliases("add-text-sequence-game", "add-sequence", "add_sequence", "addsequence", "sequence", "seq", "add-seq", "add_seq")]
 async fn add_text_sequence_game(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let mut args = args;
     let clue1: String = args.single()
@@ -213,7 +219,8 @@ async fn add_text_sequence_game(ctx: &Context, msg: &Message, args: Args) -> Com
         .or_send()
         .await?;
     let text_seq_game = TextSequence { clue1, clue2, clue3, clue4, clue5, answer };
-    let game = Game::Sequence(SequenceGame::Text(text_seq_game));
+    let submitted_by = msg.author.name.clone();
+    let game = Game { submitted_by, game: GameType::Sequence(SequenceGame::Text(text_seq_game)) };
     Executor::new(ctx, msg)
         .write(|s| {
             let game_str = format!("```\n{}\n```", &game);
@@ -237,18 +244,24 @@ async fn play(ctx: &Context, msg: &Message) -> CommandResult {
         .try_write(|s| {
             let clue = s.queue_game()
                 .and_then(|()| s.next_clue())?;
-            let game_type = s.playing.as_ref().ok_or(Error::NoGamePlaying)
-                .map(|p| match p.game {
-                    Game::Link(_) => "Guess what connects the four clues".to_string(),
-                    Game::Sequence(_) => "Guess the next element in the sequence (and name the pattern)".to_string(),
+            let (game_type, submitted_by) = s.playing.as_ref().ok_or(Error::NoGamePlaying)
+                .map(|p| {
+                    let game_type = match p.game.game {
+                        GameType::Link(_) => "Guess what connects the four clues".to_string(),
+                        GameType::Sequence(_) => "Guess the fifth element in the sequence (and name the pattern)".to_string(),
+                    };
+                    let submitted_by = p.game.submitted_by.clone();
+                    (game_type, submitted_by)
                 })?;
             Ok(ResponseOk::new(ctx, msg)
                .with_content(format!(
-r#"{}
+r#"Submitted by: @{}
+
+{}
 
 The first clue is
 
->>> {}"#, game_type, clue)))
+>>> {}"#, submitted_by, game_type, clue)))
         })
         .await
         .send()
@@ -258,24 +271,30 @@ The first clue is
 /// Gets the next clue in the game. If you think you know the answer, use `!reveal` to reveal
 /// all the clues and the answer (hidden by a spoiler tag)
 #[command]
-#[aliases("next-clue")]
+#[aliases("next-clue", "next")]
 #[only_in("guild")]
 async fn next_clue(ctx: &Context, msg: &Message) -> CommandResult {
     Executor::new(ctx, msg)
         .try_write(|s| {
-            let game_type = s.playing.as_ref().ok_or(Error::NoGamePlaying)
-                .map(|p| match p.game {
-                    Game::Link(_) => "Guess what connects the four clues".to_string(),
-                    Game::Sequence(_) => "Guess the next element in the sequence (and name the pattern)".to_string(),
+            let (game_type, submitted_by) = s.playing.as_ref().ok_or(Error::NoGamePlaying)
+                .map(|p| {
+                    let game_type = match p.game.game {
+                        GameType::Link(_) => "Guess what connects the four clues".to_string(),
+                        GameType::Sequence(_) => "Guess the next element in the sequence (and name the pattern)".to_string(),
+                    };
+                    let submitted_by = p.game.submitted_by.clone();
+                    (game_type, submitted_by)
                 })?;
             let clue = s.next_clue()?;
             Ok(ResponseOk::new(ctx, msg)
                .with_content(format!(
-r#"{}
+r#"Submitted by: @{}
+
+{}
 
 The clues so far are
 
->>> {}"# , game_type, clue)))
+>>> {}"# , submitted_by, game_type, clue)))
         })
         .await
         .send()

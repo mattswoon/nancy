@@ -22,6 +22,7 @@ use crate::{
         game::{
             Game,
             PlayingGame,
+            GameState,
         },
     },
     error::Error,
@@ -59,36 +60,53 @@ impl State {
     }
 
     pub fn queue_game(&mut self) -> Result<(), Error> {
-        let mut rng = thread_rng();
-        self.games.shuffle(&mut rng);
-        let game = self.games.pop()
-            .ok_or(Error::NoGamesLeft)?;
-        self.playing = Some(PlayingGame::new(game));
-        Ok(())
+        match &self.playing {
+            Some(PlayingGame { state: GameState::Answered, .. }) | None => { 
+                let mut rng = thread_rng();
+                self.games.shuffle(&mut rng);
+                let game = self.games.pop()
+                    .ok_or(Error::NoGamesLeft)?;
+                self.playing = Some(PlayingGame::new(game));
+                Ok(())
+            },
+            _ => Err(Error::NotFinishedPlayingYet),
+        }
     }
 
     pub fn next_clue(&mut self) -> Result<String, Error> {
-        let (clue, playing) = self.playing
-            .as_ref()
-            .ok_or(Error::NoGamePlaying)
-            .and_then(|p| {
-                let (clue, state) = p.clone().next_clue();
-                Ok((clue, p.clone().with_state(state)))
-            })?;
-        self.playing = Some(playing);
-        Ok(clue.unwrap_or("".to_string()))
+        match &self.playing {
+            Some(PlayingGame { state: GameState::Ready, .. }) |
+                Some(PlayingGame { state: GameState::Clue(_), .. } ) => {
+                    let (clue, playing) = self.playing
+                        .as_ref()
+                        .ok_or(Error::NoGamePlaying)
+                        .and_then(|p| {
+                            let (clue, state) = p.clone().next_clue();
+                            Ok((clue, p.clone().with_state(state)))
+                        })?;
+                    self.playing = Some(playing);
+                    Ok(clue.unwrap_or("".to_string()))
+                },
+            _ => Err(Error::NoCluesToShow),
+        }
     }
 
     pub fn reveal(&mut self) -> Result<String, Error> {
-        let (answer, playing) = self.playing
-            .as_ref()
-            .ok_or(Error::NoGamePlaying)
-            .and_then(|p| {
-                let (answer, state) = p.clone().reveal();
-                Ok((answer, p.clone().with_state(state)))
-            })?;
-        self.playing = Some(playing);
-        Ok(answer)
+        match &self.playing {
+            Some(PlayingGame { state: GameState::Clue(_), .. }) |
+                Some(PlayingGame { state: GameState::NoCluesLeft, ..}) => {
+                    let (answer, playing) = self.playing
+                        .as_ref()
+                        .ok_or(Error::NoGamePlaying)
+                        .and_then(|p| {
+                            let (answer, state) = p.clone().reveal();
+                            Ok((answer, p.clone().with_state(state)))
+                        })?;
+                    self.playing = Some(playing);
+                    Ok(answer)
+            },
+            _ => Err(Error::NothingToReveal)
+        }
     }
 }
 

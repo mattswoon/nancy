@@ -28,6 +28,10 @@ r#"Solve for the link
     4. {}
 
 Answer: ||{}||
-"#, self.clue1, self.clue2, self.clue3, self.clue4, self.answer)
+"#, self.clue1.replace("\n", "\n\t\t"), 
+self.clue2.replace("\n", "\n\t\t"), 
+self.clue3.replace("\n", "\n\t\t"), 
+self.clue4.replace("\n", "\n\t\t"), 
+self.answer.replace("\n", "\n\t\t"))
     }
 }
