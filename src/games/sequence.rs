@@ -2,7 +2,7 @@ use serde::{Serialize, Deserialize};
 use std::fmt::{Formatter, Display, self};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag="seq-game-type", rename_all="kebab-case")]
+#[serde(tag="sequence-game-type", rename_all="kebab-case")]
 pub enum SequenceGame {
     Text(TextSequence)
 }

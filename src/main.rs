@@ -356,6 +356,7 @@ async fn main() {
         .help(&MY_HELP)
         .group(&GENERAL_GROUP);
 
+    log::info!("Starting nancy...");
     Client::builder(&token)
         .type_map(TypeMap::new())
         .type_map_insert::<State>(State::new()
