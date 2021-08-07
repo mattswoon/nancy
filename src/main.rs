@@ -25,7 +25,6 @@ use nancy::{
         ResponseOk,
         ResponseErr,
         Respondable,
-        OrLog,
         OrSend,
     },
     games::{
@@ -33,6 +32,10 @@ use nancy::{
         link::{
             LinkGame,
             TextLink,
+        },
+        sequence::{
+            SequenceGame,
+            TextSequence,
         },
     },
     error::Error,
@@ -127,6 +130,67 @@ async fn add_text_link_game(ctx: &Context, msg: &Message, args: Args) -> Command
 }
 
 #[command]
+#[only_in("dm")]
+#[aliases("add-text-sequence-game")]
+async fn add_text_sequence_game(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
+    let mut args = args;
+    let clue1: String = args.single()
+        .or_else(|_| {
+            let m = format!("Could't get clue1, try again");
+            Err(ResponseErr::new(ctx, msg, Error::ArgError(m)))
+        })
+        .or_send()
+        .await?;
+    let clue2: String = args.single()
+        .or_else(|_| {
+            let m = format!("I got `clue1={}`, but couldn't get clue2", &clue1);
+            Err(ResponseErr::new(ctx, msg, Error::ArgError(m)))
+        })
+        .or_send()
+        .await?;
+    let clue3: String = args.single()
+        .or_else(|_| {
+            let m = format!("I got `clue1={}` and `clue2={}`, but couldn't get clue3", &clue1, &clue2);
+            Err(ResponseErr::new(ctx, msg, Error::ArgError(m)))
+        })
+        .or_send()
+        .await?;
+    let clue4: String = args.single()
+        .or_else(|_| {
+            let m = format!("I got `clue1={}`, `clue2={}` and `clue3={}`, but couldn't get clue4", &clue1, &clue2, &clue3);
+            Err(ResponseErr::new(ctx, msg, Error::ArgError(m)))
+        })
+        .or_send()
+        .await?;
+    let clue5: String = args.single()
+        .or_else(|_| {
+            let m = format!("I got `clue1={}`, `clue2={}`, `clue3={}` and `clue4={}`, but couldn't get clue5", &clue1, &clue2, &clue3, &clue4);
+            Err(ResponseErr::new(ctx, msg, Error::ArgError(m)))
+        })
+        .or_send()
+        .await?;
+    let answer: String = args.single()
+        .or_else(|_| {
+            let m = format!("I got the clues `clue1={}`, `clue2={}`, `clue3={}`, `clue4={}` and `clue5={}`, but couldn't get the answer", &clue1, &clue2, &clue3, &clue4, &clue5);
+            Err(ResponseErr::new(ctx, msg, Error::ArgError(m)))
+        })
+        .or_send()
+        .await?;
+    let text_seq_game = TextSequence { clue1, clue2, clue3, clue4, clue5, answer };
+    let game = Game::Sequence(SequenceGame::Text(text_seq_game));
+    Executor::new(ctx, msg)
+        .write(|s| {
+            let game_str = format!("```\n{}\n```", &game);
+            s.add_game(game);
+            ResponseOk::new(ctx, msg)
+                .with_content(format!("Added game:\n{}", game_str))
+        })
+        .await
+        .send()
+        .await
+}
+
+#[command]
 #[aliases("play")]
 #[only_in("guild")]
 async fn play(ctx: &Context, msg: &Message) -> CommandResult {
@@ -134,12 +198,18 @@ async fn play(ctx: &Context, msg: &Message) -> CommandResult {
         .try_write(|s| {
             let clue = s.queue_game()
                 .and_then(|()| s.next_clue())?;
+            let game_type = s.playing.as_ref().ok_or(Error::NoGamePlaying)
+                .map(|p| match p.game {
+                    Game::Link(_) => "Guess what connects the four clues".to_string(),
+                    Game::Sequence(_) => "Guess the next element in the sequence (and name the pattern)".to_string(),
+                })?;
             Ok(ResponseOk::new(ctx, msg)
                .with_content(format!(
-r#"The first clue is
+r#"{}
 
->>> {}"#
-, clue)))
+The first clue is
+
+>>> {}"#, game_type, clue)))
         })
         .await
         .send()
@@ -152,13 +222,19 @@ r#"The first clue is
 async fn next_clue(ctx: &Context, msg: &Message) -> CommandResult {
     Executor::new(ctx, msg)
         .try_write(|s| {
+            let game_type = s.playing.as_ref().ok_or(Error::NoGamePlaying)
+                .map(|p| match p.game {
+                    Game::Link(_) => "Guess what connects the four clues".to_string(),
+                    Game::Sequence(_) => "Guess the next element in the sequence (and name the pattern)".to_string(),
+                })?;
             let clue = s.next_clue()?;
             Ok(ResponseOk::new(ctx, msg)
-                .with_content(format!(
-r#"The next clue is
+               .with_content(format!(
+r#"{}
 
->>> {}"#
-, clue)))
+The clues so far are
+
+>>> {}"# , game_type, clue)))
         })
         .await
         .send()
@@ -181,7 +257,7 @@ async fn reveal(ctx: &Context, msg: &Message) -> CommandResult {
 
 
 #[group]
-#[commands(status, add_game, play, add_text_link_game, next_clue, reveal)]
+#[commands(status, add_game, play, add_text_link_game, add_text_sequence_game, next_clue, reveal)]
 struct General;
 
 struct Handler;

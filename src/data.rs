@@ -1,3 +1,7 @@
+use rand::{
+    thread_rng,
+    seq::SliceRandom,
+};
 use serenity::{
     prelude::TypeMapKey,
     client::Context,
@@ -55,6 +59,8 @@ impl State {
     }
 
     pub fn queue_game(&mut self) -> Result<(), Error> {
+        let mut rng = thread_rng();
+        self.games.shuffle(&mut rng);
         let game = self.games.pop()
             .ok_or(Error::NoGamesLeft)?;
         self.playing = Some(PlayingGame::new(game));
