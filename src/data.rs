@@ -1,7 +1,9 @@
 use serenity::{
     prelude::TypeMapKey,
     client::Context,
-    framework::standard::CommandResult,
+    framework::standard::{
+        CommandResult,
+    },
     model::{
         channel::{
             GuildChannel,
@@ -350,6 +352,29 @@ where
                 let err = e.error.clone();
                 e.send().await?;
                 Err(Box::new(err))
+            }
+        }
+    }
+}
+
+pub trait OrLog {
+    type OkType;
+    type ErrType;
+
+    fn or_log(self) -> Result<Self::OkType, Self::ErrType>;
+}
+
+#[async_trait]
+impl<T, E: std::fmt::Display> OrLog for Result<T, E> {
+    type OkType = T;
+    type ErrType = E;
+
+    fn or_log(self) -> Result<T, E> {
+        match self {
+            Ok(o) => Ok(o),
+            Err(e) => {
+                log::warn!("{}", e);
+                Err(e)
             }
         }
     }

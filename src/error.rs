@@ -7,6 +7,7 @@ pub enum Error {
     NoMainChannel,
     NoGamesLeft,
     NoGamePlaying,
+    ArgError(String),
     Serde(String),
 }
 
@@ -23,6 +24,8 @@ impl Display for Error {
                 write!(f, "A game hasn't been queued"),
             Error::NoGamesLeft => 
                 write!(f, "There are no games left, try adding some more"),
+            Error::ArgError(s) =>
+                write!(f, "Couldn't parse an argument: {}", s),
         }
     }
 }

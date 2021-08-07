@@ -1,3 +1,4 @@
+use std::fmt::{Formatter, Display, self};
 use serde::{Serialize, Deserialize};
 use crate::games::{
     sequence::{
@@ -49,26 +50,26 @@ impl PlayingGame {
         match &self.state {
             GameState::Ready => {
                 match self.game {
-                    Game::Link(LinkGame::Text(g)) => (Some(g.clue1), GameState::Clue(1)),
-                    Game::Sequence(SequenceGame::Text(g)) => (Some(g.clue1), GameState::Clue(1)),
+                    Game::Link(LinkGame::Text(g)) => (Some(format!("1. {}\n", g.clue1)), GameState::Clue(1)),
+                    Game::Sequence(SequenceGame::Text(g)) => (Some(format!("1. {}\n", g.clue1)), GameState::Clue(1)),
                 }
             },
             GameState::Clue(i) => {
                 match self.game {
                     Game::Link(LinkGame::Text(g)) => {
                         match &i {
-                            1 => (Some(g.clue2), GameState::Clue(2)),
-                            2 => (Some(g.clue3), GameState::Clue(3)),
-                            3 => (Some(g.clue4), GameState::NoCluesLeft),
+                            1 => (Some(format!("1. {}\n2. {}\n", g.clue1, g.clue2)), GameState::Clue(2)),
+                            2 => (Some(format!("1. {}\n2. {}\n3. {}\n", g.clue1, g.clue2, g.clue3)), GameState::Clue(3)),
+                            3 => (Some(format!("1. {}\n2. {}\n3. {}\n4. {}\n", g.clue1, g.clue2, g.clue3, g.clue4)), GameState::NoCluesLeft),
                             _ => (None, GameState::NoCluesLeft),
                         }
                     },
                     Game::Sequence(SequenceGame::Text(g)) => {
                         match &i {
-                            1 => (Some(g.clue2), GameState::Clue(2)),
-                            2 => (Some(g.clue3), GameState::Clue(3)),
-                            3 => (Some(g.clue4), GameState::Clue(4)),
-                            4 => (Some(g.clue5), GameState::NoCluesLeft),
+                            1 => (Some(format!("1. {}\n2. {}\n", g.clue1, g.clue2)), GameState::Clue(2)),
+                            2 => (Some(format!("1. {}\n2. {}\n3. {}\n", g.clue1, g.clue2, g.clue3)), GameState::Clue(3)),
+                            3 => (Some(format!("1. {}\n2. {}\n3. {}\n4. {}\n", g.clue1, g.clue2, g.clue3, g.clue4)), GameState::NoCluesLeft),
+                            4 => (Some(format!("1. {}\n2. {}\n3. {}\n4. {}\n5. {}\n", g.clue1, g.clue2, g.clue3, g.clue4, g.clue5)), GameState::NoCluesLeft),
                             _ => (None, GameState::NoCluesLeft),
                         }
                     },
@@ -82,6 +83,17 @@ impl PlayingGame {
         match self.game {
             Game::Link(LinkGame::Text(g)) => (g.to_string(), GameState::Answered),
             Game::Sequence(SequenceGame::Text(g)) => (g.to_string(), GameState::Answered),
+        }
+    }
+}
+
+impl Display for Game {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Game::Link(LinkGame::Text(g)) => 
+                write!(f, "{}", g),
+            Game::Sequence(SequenceGame::Text(g)) =>
+                write!(f, "{}", g),
         }
     }
 }

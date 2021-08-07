@@ -17,17 +17,17 @@ pub struct TextLink {
     pub answer: String,
 }
 
-impl TextLink {
-    pub fn verbatim(&self) -> String {
-        format!("```\nclue1:\t{}\nclue2:\t{}\nclue3:\t{}\nclue4:\t{}\nanswer:\t{}\n```",
-                self.clue1, self.clue2, self.clue3, self.clue4, self.answer)
-    }
-}
-
 impl Display for TextLink {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f,
-               "clue1:\t{}\nclue2:\t{}\nclue3:\t{}\nclue4:\t{}\nanswer:\t{}\n",
-               self.clue1, self.clue2, self.clue3, self.clue4, self.answer)
+r#"Solve for the link
+
+    1. {}
+    2. {}
+    3. {}
+    4. {}
+
+Answer: ||{}||
+"#, self.clue1, self.clue2, self.clue3, self.clue4, self.answer)
     }
 }
