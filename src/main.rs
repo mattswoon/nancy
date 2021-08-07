@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use serenity::{
     prelude::TypeMap,
     client::{
@@ -5,16 +6,23 @@ use serenity::{
         Context,
         EventHandler,
     },
-    model::channel::Message,
+    model::{
+        channel::Message,
+        id::UserId,
+    },
     framework::{
         standard::{
             StandardFramework,
             CommandResult,
             Args,
+            CommandGroup,
+            HelpOptions,
             macros::{
                 command,
-                group
+                group,
+                help,
             },
+            help_commands::plain,
         }
     }
 };
@@ -41,6 +49,7 @@ use nancy::{
     error::Error,
 };
 
+/// Prints the number of games Nancy knows about
 #[command]
 async fn status(ctx: &Context, msg: &Message) -> CommandResult {
     Executor::new(ctx, msg)
@@ -54,7 +63,9 @@ async fn status(ctx: &Context, msg: &Message) -> CommandResult {
         .await
 }
 
+/// Adds a game encoded in json - not a very friendly way of adding games
 #[command]
+#[only_in("dm")]
 #[aliases("add-game")]
 async fn add_game(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let data = args.rest();
@@ -75,6 +86,18 @@ async fn add_game(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .await
 }
 
+/// Adds a text-based "guess the link" game, expects five arguments (separated by a newline - shift+enter) for the
+/// four clues and the answer.
+///
+/// Eg.
+///
+///     !add-text-link-game
+///     earth
+///     air
+///     fire
+///     water
+///     the elements
+///
 #[command]
 #[only_in("dm")]
 #[aliases("add-text-link-game")]
@@ -129,6 +152,19 @@ async fn add_text_link_game(ctx: &Context, msg: &Message, args: Args) -> Command
         .await
 }
 
+/// Adds a text-based "guess the sequence" game, expects six arguments (separated by a newline - shift+enter) for the
+/// five clues and the answer.
+///
+/// Eg.
+///
+///     !add-text-link-game
+///     a
+///     e
+///     i
+///     o
+///     u
+///     vowels
+///
 #[command]
 #[only_in("dm")]
 #[aliases("add-text-sequence-game")]
@@ -190,6 +226,9 @@ async fn add_text_sequence_game(ctx: &Context, msg: &Message, args: Args) -> Com
         .await
 }
 
+/// Pulls a game out of the queue and starts a round with the first clue. To get the next clue
+/// use `!next-clue`, or if you think you know the answer, use `!reveal` to show all the clues
+/// and the answer (hidden with spoiler tags).
 #[command]
 #[aliases("play")]
 #[only_in("guild")]
@@ -216,6 +255,8 @@ The first clue is
         .await
 }
 
+/// Gets the next clue in the game. If you think you know the answer, use `!reveal` to reveal
+/// all the clues and the answer (hidden by a spoiler tag)
 #[command]
 #[aliases("next-clue")]
 #[only_in("guild")]
@@ -241,6 +282,7 @@ The clues so far are
         .await
 }
 
+/// Gets all the clues as well as the answer (hidden by a spoiler tag)
 #[command]
 #[only_in("guild")]
 async fn reveal(ctx: &Context, msg: &Message) -> CommandResult {
@@ -253,6 +295,19 @@ async fn reveal(ctx: &Context, msg: &Message) -> CommandResult {
         .await
         .send()
         .await
+}
+
+#[help]
+async fn my_help(
+    context: &Context,
+    msg: &Message,
+    args: Args,
+    help_options: &'static HelpOptions,
+    groups: &[&'static CommandGroup],
+    owners: HashSet<UserId>
+) -> CommandResult {
+    let _ = plain(context, msg, args, &help_options, groups, owners).await;
+    Ok(())
 }
 
 
@@ -298,6 +353,7 @@ async fn main() {
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("!")
                    .delimiter("\n"))
+        .help(&MY_HELP)
         .group(&GENERAL_GROUP);
 
     Client::builder(&token)
